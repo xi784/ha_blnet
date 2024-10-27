@@ -1,5 +1,5 @@
 """
-Connect to a BL-NET via it's web interface and read and write data
+Connect to a BL-NET via its web interface and read and write data
 
 Switch to control digital outputs
 """
@@ -25,7 +25,7 @@ FRIENDLY_NAME = 'friendly_name'
 
 
 def setup_platform(hass, config, add_devices, discovery_info=None):
-    """Set up the BLNET component"""
+    """Set up the BLNET component."""
 
     if discovery_info is None:
         _LOGGER.error("No BL-Net communication configured")
@@ -52,15 +52,20 @@ class BLNETSwitch(SwitchEntity):
         self.communication = comm
         self._name = blnet_id
         self._friendly_name = blnet_id
+        self._unique_id = f"{switch_id}_{blnet_id}"  # Eindeutige ID
         self._state = STATE_UNKNOWN
         self._assumed_state = True
         self._icon = None
         self._mode = STATE_UNKNOWN
         self._last_updated = None
 
+    @property
+    def unique_id(self):
+        """Return a unique ID for this switch."""
+        return self._unique_id
+
     def update(self):
-        """Get the latest data from communication device """
-        # check if new data has arrived
+        """Get the latest data from communication device."""
         last_blnet_update = self.communication.last_updated()
 
         if last_blnet_update == self._last_updated:
@@ -69,16 +74,12 @@ class BLNETSwitch(SwitchEntity):
         sensor_data = self.communication.data.get(self._blnet_id)
 
         if sensor_data is None:
+            _LOGGER.warning(f"No data received for switch {self._blnet_id}")
             return
 
         self._friendly_name = sensor_data.get('friendly_name')
-        if sensor_data.get('value') == "EIN":
-            self._state = STATE_ON
-            self._icon = 'mdi:flash'
-        # Nonautomated switch, toggled off => switch off
-        else:
-            self._state = STATE_OFF
-            self._icon = 'mdi:flash-off'
+        self._state = STATE_ON if sensor_data.get('value') == "EIN" else STATE_OFF
+        self._icon = 'mdi:flash' if self._state == STATE_ON else 'mdi:flash-off'
         self._mode = sensor_data.get('mode')
 
         self._last_updated = last_blnet_update
@@ -96,17 +97,16 @@ class BLNETSwitch(SwitchEntity):
 
     @property
     def icon(self):
-        """Return the state of the device."""
+        """Return the icon of the device."""
         return self._icon
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the device."""
-        attrs = {}
-
-        attrs[MODE] = self._mode
-        attrs[FRIENDLY_NAME] = self._friendly_name
-        return attrs
+        return {
+            MODE: self._mode,
+            FRIENDLY_NAME: self._friendly_name
+        }
 
     @property
     def is_on(self):
@@ -115,12 +115,14 @@ class BLNETSwitch(SwitchEntity):
 
     def turn_on(self, **kwargs):
         """Turn the device on."""
+        _LOGGER.info(f"Turning on switch {self._blnet_id}")
         self.communication.turn_on(self._id)
         self._state = STATE_ON
         self._assumed_state = True
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
+        _LOGGER.info(f"Turning off switch {self._blnet_id}")
         self.communication.turn_off(self._id)
         self._state = STATE_OFF
         self._assumed_state = True
@@ -133,7 +135,7 @@ class BLNETSwitch(SwitchEntity):
 class BLNETModeSwitch(SwitchEntity):
     """
     Representation of a switch that toggles the operation mode
-    of a digital output of the UVR1611. On means automated
+    of a digital output of the UVR1611. On means automated.
     """
 
     def __init__(self, switch_id, blnet_id, comm):
@@ -143,15 +145,20 @@ class BLNETModeSwitch(SwitchEntity):
         self.communication = comm
         self._name = '{} automated'.format(blnet_id)
         self._friendly_name = blnet_id
+        self._unique_id = f"{switch_id}_{blnet_id}_mode"  # Eindeutige ID für Modusschalter
         self._state = STATE_UNKNOWN
         self._activated = self._state
         self._assumed_state = True
         self._icon = None
         self._last_updated = None
 
+    @property
+    def unique_id(self):
+        """Return a unique ID for this mode switch."""
+        return self._unique_id
+
     def update(self):
-        """Get the latest data from communication device """
-        # check if new data has arrived
+        """Get the latest data from communication device."""
         last_blnet_update = self.communication.last_updated()
 
         if last_blnet_update == self._last_updated:
@@ -160,17 +167,12 @@ class BLNETModeSwitch(SwitchEntity):
         sensor_data = self.communication.data.get(self._blnet_id)
 
         if sensor_data is None:
+            _LOGGER.warning(f"No data received for mode switch {self._blnet_id}")
             return
 
-        self._friendly_name = "{} automated".format(
-            sensor_data.get('friendly_name'))
-        if sensor_data.get('mode') == 'HAND':
-            self._state = STATE_OFF
-            self._icon = 'mdi:cog-off'
-        else:
-            self._state = STATE_ON
-            self._icon = 'mdi:cog'
-        
+        self._friendly_name = "{} automated".format(sensor_data.get('friendly_name'))
+        self._state = STATE_ON if sensor_data.get('mode') != 'HAND' else STATE_OFF
+        self._icon = 'mdi:cog' if self._state == STATE_ON else 'mdi:cog-off'
         self._activated = sensor_data.get('value')
 
         self._last_updated = last_blnet_update
@@ -188,31 +190,31 @@ class BLNETModeSwitch(SwitchEntity):
 
     @property
     def icon(self):
-        """Return the state of the device."""
+        """Return the icon of the device."""
         return self._icon
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the device."""
-        attrs = {}
-        attrs[FRIENDLY_NAME] = self._friendly_name
-        return attrs
+        return {
+            FRIENDLY_NAME: self._friendly_name
+        }
 
     @property
     def is_on(self):
         """Return true if device is on."""
-        return self._state
+        return self._state == STATE_ON
 
     def turn_on(self, **kwargs):
         """Turn the device on."""
+        _LOGGER.info(f"Setting mode to automatic for switch {self._blnet_id}")
         self.communication.turn_auto(self._id)
         self._state = STATE_ON
         self._assumed_state = True
 
     def turn_off(self, **kwargs):
-        """Turn the device off, in this case meaning to turn off automation,
-        an sending a HAND/EIN or HAND/AUS turn manual control on."""
-
+        """Turn the device off, enabling manual control."""
+        _LOGGER.info(f"Setting mode to manual for switch {self._blnet_id}")
         if self._activated == "EIN":
             self.communication.turn_on(self._id)
         else:
@@ -221,5 +223,5 @@ class BLNETModeSwitch(SwitchEntity):
         self._assumed_state = True
 
     @property
-    def assumed_state(self)->bool:
+    def assumed_state(self) -> bool:
         return self._assumed_state

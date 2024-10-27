@@ -38,7 +38,13 @@ class BLNETComponent(Entity):
         self._state = None
         self._unit_of_measurement = None
         self._icon = None
+        self._unique_id = f"{sensor_id}_{name}"  # Eindeutige ID
 
+    @property
+    def unique_id(self):
+        """Return a unique ID for this sensor."""
+        return self._unique_id
+    
     @property
     def name(self):
         """Return the name of the sensor."""

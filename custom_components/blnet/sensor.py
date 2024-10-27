@@ -39,12 +39,24 @@ class BLNETComponent(Entity):
         self._unit_of_measurement = None
         self._icon = None
         self._unique_id = f"{sensor_id}_{name}"  # Eindeutige ID
+        self._device_class = "temperature"  # Gerätetyp Temperatur
+        self._state_class = "measurement"  # Messwert
 
     @property
     def unique_id(self):
         """Return a unique ID for this sensor."""
         return self._unique_id
-    
+
+    @property
+    def device_class(self):
+        """Return the device class of the sensor."""
+        return self._device_class
+
+    @property
+    def state_class(self):
+        """Return the state class of the sensor."""
+        return self._state_class
+        
     @property
     def name(self):
         """Return the name of the sensor."""
